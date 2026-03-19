@@ -21,10 +21,16 @@
     .event {
         background: rgba(255,255,255,0.2);
         margin: 15px auto;
-        padding: 15px;
-        border-radius: 10px;
+        padding: 20px;
+        border-radius: 12px;
         width: 80%;
-        max-width: 500px;
+        max-width: 600px;
+        font-size: 1.3em;
+    }
+
+    .time {
+        font-weight: bold;
+        font-size: 1.5em;
     }
 </style>
 </head>
@@ -34,16 +40,16 @@
 <div id="events"></div>
 
 <script>
-const ICS_URL = "INDSÆT_DIN_ICS_URL_HER";
+const ICS_URL = "https://calendar.google.com/calendar/ical/789cdf1ca22136e8ad24617712865cebe2dcfb4523f009c4b0be34a93d74a881%40group.calendar.google.com/public/basic.ics";
 
-// Gratis proxy (for at undgå CORS problemer)
+// Proxy (for at undgå CORS problemer)
 const PROXY = "https://api.allorigins.win/raw?url=";
 
 // Ugedage
 const weekdays = ["Søndag","Mandag","Tirsdag","Onsdag","Torsdag","Fredag","Lørdag"];
 document.getElementById("weekday").innerText = weekdays[new Date().getDay()];
 
-// Simpel ICS parser
+// Parse ICS
 function parseICS(data) {
     const events = [];
     const lines = data.split("\n");
@@ -53,14 +59,16 @@ function parseICS(data) {
     lines.forEach(line => {
         if (line.startsWith("BEGIN:VEVENT")) {
             event = {};
-        } else if (line.startsWith("END:VEVENT")) {
+        } 
+        else if (line.startsWith("END:VEVENT")) {
             events.push(event);
-        } else if (event) {
+        } 
+        else if (event) {
             if (line.startsWith("SUMMARY:")) {
                 event.summary = line.replace("SUMMARY:", "");
             }
-            if (line.startsWith("DTSTART:")) {
-                event.start = line.replace("DTSTART:", "");
+            if (line.startsWith("DTSTART")) {
+                event.start = line.split(":")[1];
             }
         }
     });
@@ -68,14 +76,16 @@ function parseICS(data) {
     return events;
 }
 
-// Konverter dato
+// Konverter dato (ICS format → JS dato)
 function parseDate(dateStr) {
+    if (!dateStr) return null;
+
     return new Date(
         dateStr.substring(0,4),
         dateStr.substring(4,6)-1,
         dateStr.substring(6,8),
-        dateStr.substring(9,11),
-        dateStr.substring(11,13)
+        dateStr.substring(9,11) || 0,
+        dateStr.substring(11,13) || 0
     );
 }
 
@@ -87,10 +97,11 @@ async function loadEvents() {
     const today = new Date();
 
     const container = document.getElementById("events");
+    container.innerHTML = "";
 
     const todaysEvents = events.filter(e => {
-        if (!e.start) return false;
         const d = parseDate(e.start);
+        if (!d) return false;
         return d.toDateString() === today.toDateString();
     });
 
@@ -106,13 +117,18 @@ async function loadEvents() {
         div.className = "event";
 
         div.innerHTML = `
-            <div><strong>${d.toLocaleTimeString("da-DK", {hour:"2-digit", minute:"2-digit"})}</strong></div>
+            <div class="time">
+                ${d.toLocaleTimeString("da-DK", {hour:"2-digit", minute:"2-digit"})}
+            </div>
             <div>${e.summary}</div>
         `;
 
         container.appendChild(div);
     });
 }
+
+// Opdater automatisk hvert minut
+setInterval(loadEvents, 60000);
 
 loadEvents();
 </script>
