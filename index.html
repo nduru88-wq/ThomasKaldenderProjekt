@@ -1,1 +1,121 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<title>Dagens Aftaler</title>
 
+<style>
+    body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background-color: #007BFF;
+        color: white;
+        text-align: center;
+    }
+
+    h1 {
+        margin-top: 40px;
+        font-size: 2.5em;
+    }
+
+    .event {
+        background: rgba(255,255,255,0.2);
+        margin: 15px auto;
+        padding: 15px;
+        border-radius: 10px;
+        width: 80%;
+        max-width: 500px;
+    }
+</style>
+</head>
+<body>
+
+<h1 id="weekday"></h1>
+<div id="events"></div>
+
+<script>
+const ICS_URL = "INDSÆT_DIN_ICS_URL_HER";
+
+// Gratis proxy (for at undgå CORS problemer)
+const PROXY = "https://api.allorigins.win/raw?url=";
+
+// Ugedage
+const weekdays = ["Søndag","Mandag","Tirsdag","Onsdag","Torsdag","Fredag","Lørdag"];
+document.getElementById("weekday").innerText = weekdays[new Date().getDay()];
+
+// Simpel ICS parser
+function parseICS(data) {
+    const events = [];
+    const lines = data.split("\n");
+
+    let event = null;
+
+    lines.forEach(line => {
+        if (line.startsWith("BEGIN:VEVENT")) {
+            event = {};
+        } else if (line.startsWith("END:VEVENT")) {
+            events.push(event);
+        } else if (event) {
+            if (line.startsWith("SUMMARY:")) {
+                event.summary = line.replace("SUMMARY:", "");
+            }
+            if (line.startsWith("DTSTART:")) {
+                event.start = line.replace("DTSTART:", "");
+            }
+        }
+    });
+
+    return events;
+}
+
+// Konverter dato
+function parseDate(dateStr) {
+    return new Date(
+        dateStr.substring(0,4),
+        dateStr.substring(4,6)-1,
+        dateStr.substring(6,8),
+        dateStr.substring(9,11),
+        dateStr.substring(11,13)
+    );
+}
+
+async function loadEvents() {
+    const res = await fetch(PROXY + encodeURIComponent(ICS_URL));
+    const text = await res.text();
+
+    const events = parseICS(text);
+    const today = new Date();
+
+    const container = document.getElementById("events");
+
+    const todaysEvents = events.filter(e => {
+        if (!e.start) return false;
+        const d = parseDate(e.start);
+        return d.toDateString() === today.toDateString();
+    });
+
+    if (todaysEvents.length === 0) {
+        container.innerHTML = "<p>Ingen aftaler i dag</p>";
+        return;
+    }
+
+    todaysEvents.forEach(e => {
+        const d = parseDate(e.start);
+
+        const div = document.createElement("div");
+        div.className = "event";
+
+        div.innerHTML = `
+            <div><strong>${d.toLocaleTimeString("da-DK", {hour:"2-digit", minute:"2-digit"})}</strong></div>
+            <div>${e.summary}</div>
+        `;
+
+        container.appendChild(div);
+    });
+}
+
+loadEvents();
+</script>
+
+</body>
+</html>
