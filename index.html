@@ -76,7 +76,7 @@ function parseICS(data) {
     return events;
 }
 
-// Konverter dato (ICS format → JS dato)
+// Konverter dato
 function parseDate(dateStr) {
     if (!dateStr) return null;
 
@@ -89,48 +89,59 @@ function parseDate(dateStr) {
     );
 }
 
+// Hent og vis events
 async function loadEvents() {
-    const res = await fetch(PROXY + encodeURIComponent(ICS_URL));
-    const text = await res.text();
+    try {
+        const res = await fetch(PROXY + encodeURIComponent(ICS_URL));
+        const text = await res.text();
 
-    const events = parseICS(text);
-    const today = new Date();
+        const events = parseICS(text);
+        const today = new Date();
 
-    const container = document.getElementById("events");
-    container.innerHTML = "";
+        const container = document.getElementById("events");
+        container.innerHTML = "";
 
-    const todaysEvents = events.filter(e => {
-        const d = parseDate(e.start);
-        if (!d) return false;
-        return d.toDateString() === today.toDateString();
-    });
+        const todaysEvents = events.filter(e => {
+            const d = parseDate(e.start);
+            if (!d) return false;
+            return d.toDateString() === today.toDateString();
+        });
 
-    if (todaysEvents.length === 0) {
-        container.innerHTML = "<p>Ingen aftaler i dag</p>";
-        return;
+        if (todaysEvents.length === 0) {
+            container.innerHTML = "<p>Ingen aftaler i dag</p>";
+            return;
+        }
+
+        todaysEvents.forEach(e => {
+            const d = parseDate(e.start);
+
+            const div = document.createElement("div");
+            div.className = "event";
+
+            div.innerHTML = `
+                <div class="time">
+                    ${d.toLocaleTimeString("da-DK", {hour:"2-digit", minute:"2-digit"})}
+                </div>
+                <div>${e.summary}</div>
+            `;
+
+            container.appendChild(div);
+        });
+
+    } catch (error) {
+        console.error("Fejl ved hentning:", error);
+        document.getElementById("events").innerHTML = "<p>Fejl ved indlæsning</p>";
     }
-
-    todaysEvents.forEach(e => {
-        const d = parseDate(e.start);
-
-        const div = document.createElement("div");
-        div.className = "event";
-
-        div.innerHTML = `
-            <div class="time">
-                ${d.toLocaleTimeString("da-DK", {hour:"2-digit", minute:"2-digit"})}
-            </div>
-            <div>${e.summary}</div>
-        `;
-
-        container.appendChild(div);
-    });
 }
 
-// Opdater automatisk hvert minut
-setInterval(loadEvents, 60000);
-
+// Kør med det samme
 loadEvents();
+
+// Opdater hvert minut
+setInterval(() => {
+    loadEvents();
+}, 60000);
+
 </script>
 
 </body>
